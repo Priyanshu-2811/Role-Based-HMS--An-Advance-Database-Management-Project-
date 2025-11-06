@@ -1,0 +1,143 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Database Management</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Hospital Database Management</h1>
+        <p>Current Role: {{ session['role'].capitalize() }}</p>
+        <a href="{{ url_for('logout') }}" class="btn btn-secondary mb-3">Change Role</a>
+        
+        <div class="mb-3">
+            <label for="table-select" class="form-label">Select Table:</label>
+            <select id="table-select" class="form-select">
+                {% for table in tables %}
+                <option value="{{ table }}">{{ table }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button id="execute-query" class="btn btn-primary mb-3">Execute Table Query</button>
+
+        <form id="record-form" class="mb-3">
+            <div id="record-fields"></div>
+            <button type="button" id="insert-record" class="btn btn-success">Insert</button>
+            <button type="button" id="update-record" class="btn btn-warning">Update</button>
+            <button type="button" id="delete-record" class="btn btn-danger">Delete</button>
+        </form>
+
+        <div class="mb-3">
+            <label for="custom-query" class="form-label">Custom Query (accessible to all roles):</label>
+            <textarea id="custom-query" class="form-control" rows="5"></textarea>
+            <button id="execute-custom-query" class="btn btn-primary mt-2">Execute Custom Query</button>
+        </div>
+
+        <div id="result-container" class="mt-4">
+            <h3>Results:</h3>
+            <div id="result-content"></div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            function updateFormFields() {
+                $.post('/get_columns', { table_name: $('#table-select').val() }, function(columns) {
+                    $('#record-fields').empty();
+                    columns.forEach(function(column) {
+                        $('#record-fields').append(`
+                            <div class="mb-3">
+                                <label for="${column}" class="form-label">${column}:</label>
+                                <input type="text" class="form-control" id="${column}" name="${column}">
+                            </div>
+                        `);
+                    });
+                });
+            }
+
+            $('#table-select').change(updateFormFields);
+            updateFormFields();
+
+            $('#execute-query').click(function() {
+                $.post('/execute_query', { table_name: $('#table-select').val() }, function(response) {
+                    if (response.success) {
+                        displayResults(response.data);
+                    } else {
+                        alert('Error: ' + response.error);
+                    }
+                });
+            });
+
+            $('#insert-record').click(function() {
+                $.post('/insert_record', $('#record-form').serialize() + '&table_name=' + $('#table-select').val(), function(response) {
+                    if (response.success) {
+                        alert(response.message);
+                        $('#record-form')[0].reset();
+                    } else {
+                        alert('Error: ' + response.error);
+                    }
+                });
+            });
+
+            $('#update-record').click(function() {
+                $.post('/update_record', $('#record-form').serialize() + '&table_name=' + $('#table-select').val(), function(response) {
+                    if (response.success) {
+                        alert(response.message);
+                        $('#record-form')[0].reset();
+                    } else {
+                        alert('Error: ' + response.error);
+                    }
+                });
+            });
+
+            $('#delete-record').click(function() {
+                $.post('/delete_record', $('#record-form').serialize() + '&table_name=' + $('#table-select').val(), function(response) {
+                    if (response.success) {
+                        alert(response.message);
+                        $('#record-form')[0].reset();
+                    } else {
+                        alert('Error: ' + response.error);
+                    }
+                });
+            });
+
+            $('#execute-custom-query').click(function() {
+                $.post('/execute_custom_query', { query: $('#custom-query').val() }, function(response) {
+                    if (response.success) {
+                        if (response.data) {
+                            displayResults(response.data);
+                        } else {
+                            $('#result-content').html('<p>' + response.message + '</p>');
+                        }
+                    } else {
+                        alert('Error: ' + response.error);
+                    }
+                });
+            });
+
+            function displayResults(data) {
+                let table = '<table class="table table-striped"><thead><tr>';
+                for (let key in data[0]) {
+                    table += `<th>${key}</th>`;
+                }
+                table += '</tr></thead><tbody>';
+                data.forEach(function(row) {
+                    table += '<tr>';
+                    for (let key in row) {
+                        table += `<td>${row[key]}</td>`;
+                    }
+                    table += '</tr>';
+                });
+                table += '</tbody></table>';
+                $('#result-content').html(table);
+            }
+        });
+    </script>
+</body>
+</html>
